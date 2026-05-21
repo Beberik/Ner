@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plasma</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas" width="800" height="400"></canvas>
+
+    <script>
+        // Get the canvas element by its ID
+        const canvas = document.getElementById('myCanvas');
+        // Get the 2D rendering context for the canvas
+        const ctx = canvas.getContext('2d');
+
+        // Generate n numbers in [min, max]
+        function range(min, max, n) {
+            const array = [];
+            for (let i = 0; i < n; i++) {
+                array.push(min + (max - min) * i / (n - 1));
+            }
+            return array;
+        }
+
+        // Generate n random numbers in (min, max)
+        function rands(min, max, n) {
+            const array = [];
+            for (let i = 0; i < n; i++) {
+                const randomNumber = min + Math.random() * (max - min);
+                array.push(randomNumber);
+            }
+            return array;
+        }
+
+        // Generate bump from 0 to max and back to 0; n numbers
+        function cosine(max, n) {
+            const array = [];
+            for (let i = 0; i < n; i++) {
+                let c = Math.cos(Math.PI * (-0.5 + i / (n - 1)));
+                array.push(max * c * c);
+            }
+            return array;
+        }
+
+        // Step function, from -max to max, centered at xCenter; xCenter is between 0 (left) to 1 (right)
+        function theta(max, xCenter, n) {
+            const array = [];
+            for (let i = 0; i < n; i++) {
+                let x = i / (n - 1);
+                if (x < xCenter)
+                    array.push(-max);
+                else if (x > xCenter)
+                    array.push(max);
+                else
+                    array.push(0);
+            }
+            return array;
+        }
+
+        //// PARTICLES ////
+        let colors = ["#b2f75f", "#4de6f1", "#66caff", "#c8e0ff", "#b0e07e", "#c4affc", "#6af7fb", "#4eefa4", "#03d3fb", "#8cc4f7", "#9ef6b5", "#a3d8e3", "#08dacf"];
+        // The number of particles
+        let nParticles = 40;
+        let particleWidth = canvas.width / nParticles;
+        // the timestep
+        let dt = 0.1;
+        // the particle positions
+        let xs = range(particleWidth/2, canvas.width - particleWidth/2, nParticles);
+        // the particle velocities; note that the visible speed is v * dt
+        let vxs = cosine(3, nParticles);
+        // TASK #2 //
+        // how does the oscillation period depend on the plasma density? You can use a stopwatch.
+        let ex0 = 10; // max field of all ions
+        
+        // Field of a single ELECTRON
+        function particleField(x) {
+            if (x > -particleWidth/2 && x < particleWidth/2) {
+                return -ex0 * x / (nParticles * particleWidth/2);
+            } else if (x > 0) {
+                return -ex0 / nParticles;
+            } else {
+                return ex0 / nParticles;
+            }
+        }
+
+        // Simple electrostatic solver
+        function updateField(x0, x1) {
+            // x0, x1 are previous and current particle positions
+            // WE SUPPOSE THAT THE PARTICLE MOVES NO MORE THAN ITS WIDTH IN A TIMESTEP
+            let i0 = Math.floor(x0/particleWidth + 0.5);
+            let i1 = Math.floor(x1/particleWidth + 0.5);
+            let s = new Set([i0, i1]);
+            // should update the field at these indeces
+            for (let i of s) {
+                ex[i] += particleField(i * particleWidth - x1) - particleField(i * particleWidth - x0);
+            }
+        }
+
+        // Update the position of particles and the field
+        function updatePositions() {
+            for (let i = 0; i < nParticles; i++) {
+                let x0 = xs[i];
+                xs[i] += vxs[i] * dt;
+
+                // Check for collision with the canvas boundaries
+                if (xs[i] <= 0) {
+                    vxs[i] = Math.abs(vxs[i]);
+                    xs[i] = -xs[i]; // ensures that the particle is inside the box
+                }
+                if (xs[i] >= canvas.width) {
+                    vxs[i] = -Math.abs(vxs[i]);
+                    xs[i] = 2 * canvas.width - xs[i];
+                }
+                
+                updateField(x0, xs[i]);
+            }
+        }
+		
+		let friction = 0.05;
+		
+        // Update velocities
+        function updateVelocities() {
+            for (let i = 0; i < nParticles; i++) {
+                let i0 = Math.floor(xs[i]/particleWidth); // electron is between i0 and i0+1
+                let a = xs[i]/particleWidth - i0;
+                // TASK #1 //
+                // make a linear approximation for the field
+                // let e = ex[i0] * ? + ex[i0+1] * ?;
+                let e = ex[i0] * (1-a) + ex[i0+1] * a;
+                // TASK #3 //
+                // add friction which leads to smooth damping of oscillations
+                 vxs[i] += -e * dt - vxs[i] * friction * dt;
+            }
+        }
+
+        // Draw rectangles at the particle positions
+        function drawParticles() {
+            for (let i = 0; i < nParticles; i++) {
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fillRect(xs[i]-particleWidth/2, 0, particleWidth, canvas.height);
+            }
+        }
+
+        //// ELECTRIC FIELD ////
+        let nField = nParticles + 1;
+        // TASK #4 //
+        // place a charged plane into the plasma, use function `theta`. What do you see?
+        //let ex = range(0, 0, nField);
+		let center = 0.5;
+		let power = 0;
+		let ex = theta(power, center, nField);
+        // TASK #5* //
+        // how far are the electons from their initial positions? Plot it.
+
+        function drawField(multiplier) {
+            let axColor = "#636363";
+            let fieldColor = "#000000";
+            ctx.lineWidth = 2;
+            // Draw axis
+            ctx.setLineDash([10, 5]); // [dash length, gap length]
+            ctx.strokeStyle = axColor;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height/2);
+            ctx.lineTo(canvas.width, canvas.height/2);
+            ctx.stroke();
+            // Draw field
+            ctx.setLineDash([1, 0]); // [dash length, gap length]
+            ctx.strokeStyle = fieldColor;
+            for (let i = 0; i < nField - 1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * particleWidth, canvas.height/2 - multiplier * ex[i] * canvas.height/2 / (2 * ex0));
+                ctx.lineTo((i+1) * particleWidth, canvas.height/2 - multiplier * ex[i+1] * canvas.height/2 / (2 * ex0));
+                ctx.stroke();
+            }
+        }
+
+        //// Animate the particles and the fields ////
+        function animate() {
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            updatePositions();
+            updateVelocities();
+            drawParticles();
+            drawField(20);
+            // Way for smooth animation
+            requestAnimationFrame(animate);
+        }
+
+        // Start the animation
+        animate();
+    </script>
+</body>
+</html>
+

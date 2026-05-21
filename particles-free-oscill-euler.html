@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Rectangle</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas" width="800" height="200"></canvas>
+	
+    <script>
+        // Get the canvas element by its ID
+        const canvas = document.getElementById('myCanvas');
+        // Get the 2D rendering context for the canvas
+        const ctx = canvas.getContext('2d');
+
+        // Generate n random numbers in (min, max)
+        function rands(min, max, n) {
+            const array = [];
+            for (let i = 0; i < n; i++) {
+                const randomNumber = min + Math.random() * (max - min);
+                array.push(randomNumber);
+            }
+            return array;
+        }
+
+        //// PARTICLES ////
+        let colors = ["#0ed21c", "#1ac8ba", "#13bdfe", "#a1a3fd", "#fc64fe", "#fd8581", "#fe8c09", "#ccac0d"];
+        // The number of particles
+        let nParticles = 20;
+        // the timestep
+        let dt = 0.1;
+        // the particle start positions
+        let startxs = rands(50, canvas.width - 50, nParticles);
+        let startys = rands(0, canvas.height, nParticles);
+        // the particle positions
+        let xs = structuredClone(startxs);
+        let ys = structuredClone(startys);
+        // the particle velocities; note that the visible speed is v * dt
+        let vxs = rands(-40, 40, nParticles);
+        let vys = rands(-20, 20, nParticles);
+        // spring power
+        let spring = 0.01;
+        // energy value
+        let e;
+        // euler/midpoint method
+        let euler = false;
+        // Update the position of particles
+        function update() {
+            for (let i = 0; i < nParticles; i++) {
+                if(euler){
+                  // Euler method
+                  xs[i] += vxs[i] * dt;
+                  ys[i] += vys[i] * dt;
+                  //vxs[i] -= spring * (xs[i] - startxs[i]) * dt;
+                  //vys[i] -= spring * (ys[i] - startys[i]) * dt;
+				  vxs[i] -= spring * (xs[i] - canvas.width/2) * dt;
+                  vys[i] -= spring * (ys[i] - canvas.height/2) * dt;
+                }
+                else{
+                  // Midpoint method
+                  vxs[i] -= spring * (xs[i] - canvas.width/2) * dt / 2;
+                  vys[i] -= spring * (ys[i] - canvas.height/2) * dt / 2;
+                  xs[i] += vxs[i] * dt;
+                  ys[i] += vys[i] * dt;
+                  vxs[i] -= spring * (xs[i] - canvas.width/2) * dt / 2;
+                  vys[i] -= spring * (ys[i] - canvas.height/2) * dt / 2;
+                }
+                // Check for collision with the canvas boundaries
+                if (xs[i] <= 0) {
+                    vxs[i] = Math.abs(vxs[i]);
+                }
+                if (xs[i] >= canvas.width) {
+                    vxs[i] = -Math.abs(vxs[i]);
+                }
+                if (ys[i] <= 0) {
+                    vys[i] = Math.abs(vys[i]);
+                }
+                if (ys[i] >= canvas.height) {
+                    vys[i] = -Math.abs(vys[i]);
+                }
+            }
+        }
+        // Energy value for the current system; should be constant
+        function energy(){
+          e = 0;
+          for (let i = 0; i < nParticles; i++) {
+              e += (vxs[i] * vxs[i] + vys[i] * vys[i]);
+              e += spring * ((xs[i] - startxs[i]) * (xs[i] - startxs[i]) + (ys[i] - startys[i]) * (ys[i] - startys[i]));
+              
+          }
+          e /= 2;
+          e=e.toFixed(3);
+        }
+        // Draw circles at the particle positions
+        function drawParticles() {
+            for (let i = 0; i < nParticles; i++) {
+                // Set the fill style to a color
+                ctx.fillStyle = colors[i % colors.length];
+                // Draw a circle
+                ctx.beginPath();
+                ctx.arc(xs[i], ys[i], 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            }
+          ctx.font = "24px serif";
+          ctx.fillText("Energy: " + e, 10, 50);
+        }
+
+        // Animate the particles
+        function animate() {
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            update();
+            energy();
+            drawParticles();
+            // Way for smooth animation
+            requestAnimationFrame(animate);
+        }
+
+        // Start the animation
+        animate();
+    </script>
+</body>
+</html>
+
